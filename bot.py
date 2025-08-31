@@ -1,7 +1,17 @@
 import os
-from telethon import TelegramClient
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters, ConversationHandler
+from dotenv import load_dotenv
+from telethon import TelegramClient, functions, types
+
+# ========================
+# LOAD ENV VARIABLES
+# ========================
+load_dotenv()
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")      # from .env
+API_ID = int(os.getenv("API_ID"))       # must be int
+API_HASH = os.getenv("API_HASH")        # string
 
 # ========================
 # TELEGRAM BOT CREDENTIALS
