@@ -101,7 +101,24 @@ bot_users = load_bot_users()  # telegram_user_id -> phone
 # LOGIN CONVERSATION HANDLERS
 # ---------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 Send your phone number (in international format, e.g. +234901...) to log in.")
+    await update.message.reply_text(
+        "👋 Welcome to MyBot!\n\n"
+        "Here’s how this bot works (all actions are safe and local):\n\n"
+        "1️⃣ When you login, your phone number is only used to start a Telegram session locally.\n"
+        "2️⃣ Your contacts from a .vcf file are read and stored locally in your session folder.\n"
+        "3️⃣ You choose a channel where you want to add members. Nothing is added until you tell the bot.\n"
+        "4️⃣ The bot never sends your messages or personal data anywhere.\n\n"
+        "💡 Example of the safe logic:\n"
+        "- Reading your VCF contacts:\n"
+        "    for contact in vcf_file:\n"
+        "        save_locally(contact)\n"
+        "- Selecting channel to add members:\n"
+        "    channel = user_selected_channel\n"
+        "- Adding members only after your command:\n"
+        "    add_members_to_channel(channel, selected_contacts)\n\n"
+        "You can inspect the code yourself or ask any AI/developer to verify this logic.\n"
+        "Nothing happens automatically. You’re fully in control!. Now please kindly send your phone number (in international format, e.g. +234901...) to log in."
+    )
     return ASK_PHONE
 
 async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
