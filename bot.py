@@ -71,7 +71,7 @@ def load_bot_users():
 async def get_client(user_id, phone):
     # check existing client
     existing_client = user_clients.get(user_id)
-    if existing_client and await existing_client.is_connected():
+    if existing_client and existing_client.is_connected():
         return existing_client
 
     # path for session
