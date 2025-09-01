@@ -517,55 +517,76 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # default fallback for other texts
     return
 
+# ---------------------------
+# SET CHANNEL
+# ---------------------------
 async def set_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    tg_id = update.effective_user.id
-    if tg_id not in bot_users:
-        await update.message.reply_text("⚠️ Login first with /start")
-        return
-
-    if not context.args:
-        await update.message.reply_text("Usage: /setchannel @channelusername or invite link")
-        return
-
-    channel_text = context.args[0]
-    # store in user_data
-    context.user_data["target_channel_input"] = channel_text
-    context.user_data["awaiting_channel"] = False
-    await update.message.reply_text(f"✅ Channel set to {channel_text}. Now you can use /addmembers to invite contacts.")
-
-async def add_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    tg_id = update.effective_user.id
-    client = user_clients.get(tg_id)
-    if not client:
+    user_id = str(update.effective_user.id)
+    phone = bot_users.get(user_id)
+    if not phone:
         await update.message.reply_text("⚠️ You must login first with /start")
         return
 
-    phone = bot_users.get(str(tg_id))
-    user_folder = os.path.join(SESSIONS_DIR, phone)
-    imported_file = os.path.join(user_folder, f"{phone}_imported.json")
+    client = await get_client(update.effective_user.id, phone)
 
-    if not os.path.exists(imported_file):
-        await update.message.reply_text("⚠️ Upload a VCF first with /upload_vcf")
+    if not context.args:
+        await update.message.reply_text("⚡ Usage: /setchannel @yourchannel")
         return
 
-    # load imported users
-    with open(imported_file, "r") as f:
-        imported_users = json.load(f)
+    channel = context.args[0]
+    # store channel in user_data
+    context.user_data["channel"] = channel
+    await update.message.reply_text(f"✅ Channel set to {channel}. You can now use /addmembers to start adding.")
 
-    if not imported_users:
-        await update.message.reply_text("No contacts to invite. Upload a VCF first.")
+
+# ---------------------------
+# ADD MEMBERS
+# ---------------------------
+async def add_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    phone = bot_users.get(user_id)
+    if not phone:
+        await update.message.reply_text("⚠️ You must login first with /start")
         return
 
-    # check channel is set
-    channel_text = context.user_data.get("target_channel_input")
-    if not channel_text:
-        await update.message.reply_text("⚠️ Set a channel first with /setchannel")
+    client = await get_client(update.effective_user.id, phone)
+
+    if "channel" not in context.user_data:
+        await update.message.reply_text("⚡ First set a channel with /setchannel")
         return
 
-    # store state to ask number of members next
-    context.user_data["awaiting_num"] = True
-    await update.message.reply_text("📥 How many members do you want to add? (Enter a number from 1-50)")
+    contacts_file = os.path.join(SESSIONS_DIR, phone, f"{phone}_imported.json")
+    if not os.path.exists(contacts_file):
+        await update.message.reply_text("⚡ No imported contacts found. Upload a VCF first with /upload_vcf")
+        return
 
+    with open(contacts_file, "r") as f:
+        contacts = json.load(f)
+
+    if not contacts:
+        await update.message.reply_text("⚡ You have no imported contacts to add.")
+        return
+
+    channel = context.user_data["channel"]
+    added = 0
+
+    for contact in contacts:
+        try:
+            result = await client(functions.contacts.ImportContactsRequest(
+                contacts=[InputPhoneContact(client_id=random.randint(0, 999999), phone=contact["phone"], first_name=contact["name"], last_name="")]
+            ))
+            if result.users:
+                user = result.users[0]
+                await client(functions.channels.InviteToChannelRequest(
+                    channel=channel,
+                    users=[user.id]
+                ))
+                added += 1
+            await asyncio.sleep(2)  # small delay to avoid flood
+        except Exception:
+            continue
+
+    await update.message.reply_text(f"✅ Added {added} members to {channel}!")
 # ---------------------------
 # Bot startup
 # ---------------------------
