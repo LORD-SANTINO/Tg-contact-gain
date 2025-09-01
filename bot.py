@@ -501,6 +501,55 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # default fallback for other texts
     return
 
+async def set_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tg_id = update.effective_user.id
+    if tg_id not in bot_users:
+        await update.message.reply_text("⚠️ Login first with /start")
+        return
+
+    if not context.args:
+        await update.message.reply_text("Usage: /setchannel @channelusername or invite link")
+        return
+
+    channel_text = context.args[0]
+    # store in user_data
+    context.user_data["target_channel_input"] = channel_text
+    context.user_data["awaiting_channel"] = False
+    await update.message.reply_text(f"✅ Channel set to {channel_text}. Now you can use /addmembers to invite contacts.")
+
+async def add_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tg_id = update.effective_user.id
+    client = user_clients.get(tg_id)
+    if not client:
+        await update.message.reply_text("⚠️ You must login first with /start")
+        return
+
+    phone = bot_users.get(str(tg_id))
+    user_folder = os.path.join(SESSIONS_DIR, phone)
+    imported_file = os.path.join(user_folder, f"{phone}_imported.json")
+
+    if not os.path.exists(imported_file):
+        await update.message.reply_text("⚠️ Upload a VCF first with /upload_vcf")
+        return
+
+    # load imported users
+    with open(imported_file, "r") as f:
+        imported_users = json.load(f)
+
+    if not imported_users:
+        await update.message.reply_text("No contacts to invite. Upload a VCF first.")
+        return
+
+    # check channel is set
+    channel_text = context.user_data.get("target_channel_input")
+    if not channel_text:
+        await update.message.reply_text("⚠️ Set a channel first with /setchannel")
+        return
+
+    # store state to ask number of members next
+    context.user_data["awaiting_num"] = True
+    await update.message.reply_text("📥 How many members do you want to add? (Enter a number from 1-50)")
+
 # ---------------------------
 # Bot startup
 # ---------------------------
@@ -520,6 +569,8 @@ def main():
     )
 
     app.add_handler(conv_handler)
+    app.add_handler(CommandHandler("setchannel", set_channel))
+    app.add_handler(CommandHandler("addmembers", add_members))
     app.add_handler(CommandHandler("upload_vcf", cmd_upload_vcf))
     app.add_handler(MessageHandler(filters.Document.ALL & ~filters.COMMAND, document_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
