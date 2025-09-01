@@ -68,6 +68,22 @@ def load_bot_users():
             return json.load(f)
     return {}
 
+async def get_client(user_id, phone):
+    session_path = os.path.join(SESSIONS_DIR, f"{phone}.session")
+
+    # Disconnect previous client if it exists
+    existing_client = user_clients.get(user_id)
+    if existing_client:
+        try:
+            await existing_client.disconnect()
+        except Exception:
+            pass  # ignore errors
+        user_clients[user_id] = None
+
+    client = TelegramClient(session_path, API_ID, API_HASH)
+    await client.connect()
+    return client
+
 def save_bot_users(mapping):
     with open(BOT_USERS_FILE, "w") as f:
         json.dump(mapping, f, indent=2)
@@ -86,7 +102,7 @@ async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["phone"] = phone
     session_path = os.path.join(SESSIONS_DIR, phone)  # Telethon uses folder name; .session suffix will be applied
 
-    client = TelegramClient(session_path, API_ID, API_HASH)
+    client = await get_client(update.effective_user.id, phone)
     await client.connect()
 
     try:
