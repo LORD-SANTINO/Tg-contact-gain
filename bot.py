@@ -69,21 +69,28 @@ def load_bot_users():
     return {}
 
 async def get_client(user_id, phone):
-    session_path = os.path.join(SESSIONS_DIR, f"{phone}.session")
-
-    # Disconnect previous client if it exists
+    # check existing client
     existing_client = user_clients.get(user_id)
-    if existing_client:
-        try:
-            await existing_client.disconnect()
-        except Exception:
-            pass  # ignore errors
-        user_clients[user_id] = None
+    if existing_client and await existing_client.is_connected():
+        return existing_client
 
+    # path for session
+    session_path = os.path.join(SESSIONS_DIR, f"{phone}.session")
     client = TelegramClient(session_path, API_ID, API_HASH)
-    await client.connect()
-    return client
+    
+    try:
+        await client.connect()
+    except Exception as e:
+        # maybe the session is locked, try to disconnect first
+        try:
+            await client.disconnect()
+            await client.connect()
+        except Exception:
+            raise e
 
+    user_clients[user_id] = client
+    return client
+    
 def save_bot_users(mapping):
     with open(BOT_USERS_FILE, "w") as f:
         json.dump(mapping, f, indent=2)
