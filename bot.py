@@ -95,6 +95,13 @@ bot_users = load_bot_users()
 # LOGIN CONVERSATION HANDLERS
 # ---------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tg_id = update.effective_user.id
+    phone = bot_users.get(str(tg_id))
+    if phone:
+        client = await get_client(tg_id, phone)
+        if await client.is_user_authorized():
+            await update.message.reply_text("✅ You are already logged in!")
+            return ConversationHandler.END
     await update.message.reply_text(
         "👋 Welcome to MyBot!\n\n"
         "Here’s how this bot works (all actions are safe and local):\n\n"
@@ -110,8 +117,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "    channel = user_selected_channel\n"
         "- Adding members only after your command:\n"
         "    add_members_to_channel(channel, selected_contacts)\n\n"
-        "You can inspect the code yourself or ask any AI/developer to verify this logic.\n"
-        "Nothing happens automatically. You’re fully in control! Now please kindly send your phone number (in international format, e.g. +234901...) to log in."
+        "Please send your phone number (in international format, e.g. +234901...) to log in."
     )
     return ASK_PHONE
 
