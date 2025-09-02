@@ -647,6 +647,7 @@ def main():
     )
 
     app.add_handler(conv_handler)
+    app.add_handler(CommandHandler("logoutall", logoutall))
     app.add_handler(CommandHandler("setchannel", set_channel))
     app.add_handler(CommandHandler("addmembers", add_members))
     app.add_handler(CommandHandler("upload_vcf", cmd_upload_vcf))
