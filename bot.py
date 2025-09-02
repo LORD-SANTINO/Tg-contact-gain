@@ -201,6 +201,45 @@ async def get_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ 2FA error: {e}")
     return ConversationHandler.END
 
+async def logoutall(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tg_id = update.effective_user.id
+    phone = bot_users.get(str(tg_id))
+    if not phone:
+        await update.message.reply_text("⚠️ You are not logged in.")
+        return
+    
+    client = await get_client(tg_id, phone)
+    if not await client.is_user_authorized():
+        await update.message.reply_text("⚠️ Your session is not active or already logged out.")
+        return
+    
+    try:
+        # Get all sessions from server
+        sessions = await client(functions.account.GetAuthorizationsRequest())
+        current_session_hash = await client.session.save()
+        
+        # Revoke all sessions except current
+        for session in sessions.authorizations:
+            if session.hash != current_session_hash:
+                await client(functions.account.ResetAuthorizationRequest(hash=session.hash))
+        
+        # Log out current session
+        await client.log_out()
+        
+        # Remove session file locally
+        session_path = os.path.join(SESSIONS_DIR, f"{phone}.session")
+        if os.path.exists(session_path):
+            os.remove(session_path)
+        
+        # Remove user from bot_users
+        bot_users.pop(str(tg_id), None)
+        save_bot_users(bot_users)
+        
+        await update.message.reply_text("✅ Logged out from all sessions and local data cleared.")
+        
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error logging out: {e}")
+
 # ---------------------------
 # VCF upload / processing (unchanged)
 # ---------------------------
